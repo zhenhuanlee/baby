@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>宝宝第几周</title>
+<style>
+  body{margin:0;min-height:100vh;display:grid;place-items:center;
+       font-family:system-ui,-apple-system,"PingFang SC",sans-serif;
+       background:#fff5f7;color:#5a3d4a;text-align:center}
+  .w{font-size:22vw;font-weight:700;line-height:1;color:#e0708f}
+  .w small{font-size:.35em;color:#b98a9b}
+  p{margin:.6em 0;font-size:1rem;color:#8a6b78}
+  input{font:inherit;padding:.3em;border:1px solid #e8c4d0;border-radius:6px;background:#fff}
+</style>
+</head>
+<body>
+<div>
+  <div class="w" id="w">--</div>
+  <p id="d"></p>
+  <p>末次月经 <input type="date" id="lmp"></p>
+</div>
+<script>
+const DAY = 864e5;
+// 末次月经首日：2026-08-25 为 13+4 反推所得
+const DEFAULT_LMP = "2026-05-22";
+const lmp = document.getElementById("lmp");
+
+function today() {           // 本地时区当天零点
+  const n = new Date();
+  return new Date(n.getFullYear(), n.getMonth(), n.getDate());
+}
+
+function calc(lmpStr, now = today()) {
+  const [y, m, d] = lmpStr.split("-").map(Number);
+  const start = new Date(y, m - 1, d);
+  const days = Math.floor((now - start) / DAY);
+  const due = new Date(+start + 280 * DAY);
+  return { days, weeks: Math.floor(days / 7), rest: days % 7, due, left: Math.ceil((due - now) / DAY) };
+}
+
+function render() {
+  localStorage.lmp = lmp.value;
+  const r = calc(lmp.value);
+  document.getElementById("w").innerHTML = r.weeks + "<small>+" + r.rest + "</small>";
+  document.getElementById("d").textContent =
+    "已经 " + r.days + " 天 · 预产期 " + r.due.toLocaleDateString("zh-CN") + " · 还有 " + r.left + " 天";
+}
+
+lmp.value = localStorage.lmp || DEFAULT_LMP;
+lmp.onchange = render;
+render();
+
+// self-check
+console.assert(calc("2026-05-22", new Date(2026, 7, 25)).weeks === 13, "week");
+console.assert(calc("2026-05-22", new Date(2026, 7, 25)).rest === 4, "day");
+</script>
+</body>
+</html>
