@@ -12,6 +12,14 @@
   .w small{font-size:.35em;color:#b98a9b}
   p{margin:.6em 0;font-size:1rem;color:#8a6b78}
   input{font:inherit;padding:.3em;border:1px solid #e8c4d0;border-radius:6px;background:#fff}
+  table{margin:1.5em auto;border-collapse:collapse;max-width:44em;font-size:.9rem;text-align:left}
+  td{border-top:1px solid #f0d9e1;padding:.5em .6em;vertical-align:top}
+  td:nth-child(1),td:nth-child(2){white-space:nowrap;color:#b98a9b}
+  tr.done{opacity:.4}
+  tr.next{background:#ffe3ec;outline:2px solid #e0708f}
+  tr.next td{color:#c04a6d;font-weight:700}
+  td b{color:#c04a6d}
+  .note{max-width:44em;margin:0 auto 2em;font-size:.8rem;line-height:1.6}
 </style>
 </head>
 <body>
@@ -19,6 +27,8 @@
   <div class="w" id="w">--</div>
   <p id="d"></p>
   <p>末次月经 <input type="date" id="lmp"></p>
+  <table id="t"></table>
+  <p class="note">每次产检都测血压、体重，中晚期加量宫高腹围。表按小红书图整理并修正了 NT / GBS / 糖耐时间，最终以医院产检本为准。</p>
 </div>
 <script>
 const DAY = 864e5;
@@ -36,7 +46,37 @@ function calc(lmpStr, now = today()) {
   const start = new Date(y, m - 1, d);
   const days = Math.floor((now - start) / DAY);
   const due = new Date(+start + 280 * DAY);
-  return { days, weeks: Math.floor(days / 7), rest: days % 7, due, left: Math.ceil((due - now) / DAY) };
+  return { start, days, weeks: Math.floor(days / 7), rest: days % 7, due, left: Math.ceil((due - now) / DAY) };
+}
+
+// 产检时间表：[名称, 起始孕周, 结束孕周, 项目]
+const CHECKS = [
+  ["第一次", 4, 6, "抽血：HCG 确认怀孕（孕酮不必常规查，除非出血 / 腹痛 / 既往流产史）"],
+  ["第二次", 6, 8, "B超：胎心胎芽 / 胎儿个数 / 排除宫外孕、<b>核对孕周并修正预产期</b>"],
+  ["第三次", 11, 13, "<b>NT 早期畸形筛查（截止 13周+6，过期不能补做）</b>；建档大套：血常规、<b>血型 + Rh</b>、空腹血糖、肝肾功能、凝血四项、<b>甲功 TSH</b>、<b>乙肝 / 艾滋 / 梅毒</b>、尿常规、心电图、多普勒听胎心"],
+  ["第四次", 16, 18, "唐筛 / 无创 NIPT 排查唐氏综合征（筛查高风险再做羊穿确诊，16-22 周；高龄不等于必须羊穿）"],
+  ["第五次", 22, 24, "四维大排畸：胎儿各器官发育及畸形筛查、孕周核对"],
+  ["第六次", 24, 28, "<b>糖耐：妊娠糖尿病筛查（建议 24-25 周做完，查出来还有时间调饮食）</b>"],
+  ["第七次", 30, 30, "B超小排畸：发育情况、胎位（非头位可调整）；血常规、尿常规、肝肾功能复查"],
+  ["第八次", 32, 34, "胎心监护（两周一次），排除胎儿异常"],
+  ["第九次", 35, 37, "<b>B族链球菌（GBS）筛查 —— 培养要 2-3 天，别拖到 37 周</b>；36 周起胎心监护改为每周一次"],
+  ["第十次", 37, 37, "产前大检查：胎心监护、胎儿发育、肝肾、凝血四项、空腹血糖、胎盘功能判定、免疫功能筛查、糖化血红蛋白、白带常规+BV、沙眼衣原体、D-二聚体、心电图、骨盆测量"],
+  ["第十一次", 38, 40, "胎心监护、B超看胎位、胎儿体重；医生确定生产方式"],
+];
+
+const md = d => (d.getMonth() + 1) + "/" + d.getDate();
+
+function renderTable(start, days) {
+  // 下一次 = 第一个还没过完的窗口
+  const next = CHECKS.findIndex(([, , w2]) => days <= w2 * 7 + 6);
+  document.getElementById("t").innerHTML = CHECKS.map(([name, w1, w2, items], i) => {
+    const a = new Date(+start + w1 * 7 * DAY);
+    // 末次窗口封顶到预产期，不然会排到 40+6 周
+    const b = new Date(+start + Math.min(w2 * 7 + 6, 280) * DAY);
+    const cls = i === next ? "next" : i < next || next < 0 ? "done" : "";
+    return `<tr class="${cls}"><td>${name}<br>${w1 === w2 ? w1 : w1 + "-" + w2} 周</td>` +
+           `<td>${md(a)}<br>${md(b)}</td><td>${items}</td></tr>`;
+  }).join("");
 }
 
 function render() {
@@ -45,6 +85,7 @@ function render() {
   document.getElementById("w").innerHTML = r.weeks + "<small>+" + r.rest + "</small>";
   document.getElementById("d").textContent =
     "已经 " + r.days + " 天 · 预产期 " + r.due.toLocaleDateString("zh-CN") + " · 还有 " + r.left + " 天";
+  renderTable(r.start, r.days);
 }
 
 lmp.value = localStorage.lmp || DEFAULT_LMP;
@@ -54,6 +95,9 @@ render();
 // self-check
 console.assert(calc("2026-05-22", new Date(2026, 7, 25)).weeks === 13, "week");
 console.assert(calc("2026-05-22", new Date(2026, 7, 25)).rest === 4, "day");
+// 13+4 时下一次应是第三次（12-14 周），12 周整 = LMP + 84 天 = 8/14
+console.assert(CHECKS.findIndex(([, , w2]) => 95 <= w2 * 7 + 6) === 2, "next");
+console.assert(md(new Date(+calc("2026-05-22").start + 84 * DAY)) === "8/14", "date");
 </script>
 </body>
 </html>
