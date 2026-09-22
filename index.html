@@ -92,7 +92,7 @@ function render() {
   const r = calc(lmp.value);
   document.getElementById("w").innerHTML = r.weeks + "<small>+" + r.rest + "</small>";
   document.getElementById("d").textContent =
-    "已经 " + r.days + " 天 · 预产期 " + r.due.toLocaleDateString("zh-CN") + " · 还有 " + r.left + " 天";
+    "已经 " + r.days + " 天 · 第 " + (Math.floor(r.weeks / 4) + 1) + " 个月 · 预产期 " + r.due.toLocaleDateString("zh-CN") + " · 还有 " + r.left + " 天";
   renderTable(r.start, r.days);
 }
 
@@ -108,6 +108,8 @@ console.assert(CHECKS.findIndex(([, , w2]) => 95 <= w2 * 7 + 6) === 2, "next");
 console.assert(md(new Date(+calc("2026-05-22").start + 84 * DAY)) === "8/14", "date");
 // 14-16 周窗口内的周四：9/3、9/10、9/17
 console.assert(new Date(2026, 8, 3).getDay() === 4, "thu");
+// 4 周算一个孕月：17+4 周 = 第 5 个月
+console.assert(Math.floor(calc("2026-05-22", new Date(2026, 8, 22)).weeks / 4) + 1 === 5, "month");
 </script>
 </body>
 </html>
