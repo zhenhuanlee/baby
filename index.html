@@ -44,9 +44,12 @@ function today() {           // 本地时区当天零点
 function calc(lmpStr, now = today()) {
   const [y, m, d] = lmpStr.split("-").map(Number);
   const start = new Date(y, m - 1, d);
-  const days = Math.floor((now - start) / DAY);
+  const days = Math.round((now - start) / DAY);  // round: a DST shift makes the span 1h short or long
   const due = new Date(+start + 280 * DAY);
-  return { start, days, weeks: Math.floor(days / 7), rest: days % 7, due, left: Math.ceil((due - now) / DAY) };
+  const weeks = Math.floor(days / 7);
+  // Pregnancy month as in the common table (month 6 = weeks 21-24), capped at 10
+  const month = Math.min(10, Math.max(1, Math.ceil(weeks / 4)));
+  return { start, days, weeks, rest: days % 7, month, due, left: Math.ceil((due - now) / DAY) };
 }
 
 // 产检时间表：[名称, 起始孕周, 结束孕周, 项目]
@@ -94,7 +97,7 @@ function render() {
   const r = calc(lmp.value);
   document.getElementById("w").innerHTML = r.weeks + "<small>+" + r.rest + "</small>";
   document.getElementById("d").textContent =
-    "已经 " + r.days + " 天 · 第 " + (Math.floor(r.weeks / 4) + 1) + " 个月 · 预产期 " + r.due.toLocaleDateString("zh-CN") + " · 还有 " + r.left + " 天";
+    "已经 " + r.days + " 天 · 第 " + r.month + " 个月 · 预产期 " + r.due.toLocaleDateString("zh-CN") + " · 还有 " + r.left + " 天";
   renderTable(r.start, r.days);
 }
 
@@ -112,8 +115,11 @@ console.assert(md(new Date(+calc("2026-05-22").start + 84 * DAY)) === "8/14", "d
 console.assert(calc("2026-05-22", new Date(2026, 10, 6)).weeks === 24 && calc("2026-05-22", new Date(2026, 10, 6)).rest === 0, "3d");
 // 14-16 周窗口内的周四：9/3、9/10、9/17
 console.assert(new Date(2026, 8, 3).getDay() === 4, "thu");
-// 4 周算一个孕月：17+4 周 = 第 5 个月
-console.assert(Math.floor(calc("2026-05-22", new Date(2026, 8, 22)).weeks / 4) + 1 === 5, "month");
+// Month: 17+4 -> 5, 24+0 -> 6, 25+0 -> 7, 41+0 -> 10
+console.assert(calc("2026-05-22", new Date(2026, 8, 22)).month === 5, "month");
+console.assert(calc("2026-05-22", new Date(2026, 10, 6)).month === 6, "month 24w");
+console.assert(calc("2026-05-22", new Date(2026, 10, 13)).month === 7, "month 25w");
+console.assert(calc("2026-05-22", new Date(2027, 2, 5)).month === 10, "month cap");
 </script>
 </body>
 </html>
